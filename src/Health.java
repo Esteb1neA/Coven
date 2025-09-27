@@ -7,5 +7,10 @@ public class Health {
     public void loseHealth(){
         Health = Health-1;
     }
-
+    public boolean isHealthZero(){
+        if(Health<=0){
+            return true;
+        }
+        return false;
+    }
 }
