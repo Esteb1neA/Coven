@@ -1,16 +1,32 @@
+import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
+import java.awt.Image;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
 
 public class GameWindow {
+    public GameWindow(){
+        initComponents();
+    }
     public static void main(String[]args){
-        JFrame frame = new JFrame("Coven");
+        SwingUtilities.invokeLater(new Runnable(){
+            public void run(){
+                new GameWindow();
+            }
+        });
+    }
+    private void initComponents(){
+        JFrame frame = new JFrame();
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(800,600);
-        ImageIcon spriteIcon = new ImageIcon("pixil-frame-0.png");
-        JLabel spriteLabel = new JLabel(spriteIcon);
-        frame.add(spriteLabel);
-        frame.setResizable(false);
-        frame.setLocationRelativeTo(null);
+        BufferedImage img = null;
+        try{
+            img = ImageIO.read(getClass().getResource("player/pixil-frame-0.png"));
+        } catch (IOException ex){
+            ex.printStackTrace();
+        }
+        JLabel label = new JLabel(new ImageIcon(img));
+        frame.add(label);
         frame.setVisible(true);
     }
 }
