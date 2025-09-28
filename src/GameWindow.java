@@ -102,7 +102,7 @@ public class GameWindow extends JPanel implements KeyListener, ActionListener {
             }
         }
         g.setColor(Color.RED);
-        g.fillRect(10,10,playerHealth.getHealth()*2,20);
+        g.fillRect(10,10,playerHealth.getHealth()*20,20);
         g.setColor(Color.BLACK);
         g.drawRect(10,10,200,20);
         g.drawString("Player HP: " + playerHealth.getHealth(),10,45);
@@ -217,6 +217,7 @@ public class GameWindow extends JPanel implements KeyListener, ActionListener {
         for(int i = 0; i < 5; i++) {
             spawnEnemy();
         }
+        enemiesDefeated=0;
         gameOver = false;
         gameTimer.start();
         repaint();
