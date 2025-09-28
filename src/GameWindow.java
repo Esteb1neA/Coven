@@ -6,24 +6,26 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
+import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
-
+import java.util.Random;
 public class GameWindow extends JPanel implements KeyListener, ActionListener {
     private static BufferedImage player;
     private int imageX,imageY=400;
-    private final int MOVE_SPEED = 10;
+    private final int MOVE_SPEED = 8;
     private Set<Integer> pressedKeys = new HashSet<>();
     private static Timer gameTimer;
     private static Health playerHealth = new Health();
-    private static BufferedImage damageOrb;
+    private static Timer enemyTimer;
+    private ArrayList<ImageEntity> images = new ArrayList<>();
     public GameWindow(){
 
         try{
             player = ImageIO.read(getClass().getResource("player/pixil-frame-0.png"));
-            damageOrb = ImageIO.read(getClass().getResource("enemy/damage-orb.png"));
         } catch (IOException ex) {
             ex.printStackTrace();
         }
@@ -32,22 +34,32 @@ public class GameWindow extends JPanel implements KeyListener, ActionListener {
         gameTimer = new Timer(20,this);
         gameTimer.start();
     }
+    private void spawnImage(){
+        Random rand = new Random();
+        int y = rand.nextInt(1600)+1;
+        int x = rand.nextInt(1000)+1;
+        ImageEntity entity = new ImageEntity(enemy,imageX,imageY,"ID-"+System.currentTimeMillis());
+        images.add(entity);
+    }
     public static void main(String[]args){
         SwingUtilities.invokeLater(new Runnable(){
             public void run(){
                 JFrame frame = new JFrame();
                 frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
                 GameWindow panel = new GameWindow();
+                enemyTimer = new Timer(1000,  new ActionListener() {
+                    @Override
+                    public void actionPerformed(ActionEvent e) {
+                        BasicEnemy curr = new BasicEnemy();
+                        panel.repaint();
+                    }
+                });
+                enemyTimer.start();
                 frame.add(panel);
                 frame.setVisible(true);
-                Rectangle boundsPanel = panel.getBounds();
-                /*if(boundsPanel.intersects(enemyDamage)){
-                    playerHealth.loseHealth(enemyDamage.damage());
-                }*/
             }
         });
     }
-
 
     @Override
     protected void paintComponent(Graphics g){
