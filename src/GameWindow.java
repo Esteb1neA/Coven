@@ -8,26 +8,40 @@ import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Random;
 import java.util.Set;
 public class GameWindow extends JPanel implements KeyListener, ActionListener {
     private static BufferedImage player;
+    private static BufferedImage enemyImg;
     private static int imageX,imageY=400;
     private final int MOVE_SPEED = 8;
     private Set<Integer> pressedKeys = new HashSet<>();
     private static Timer gameTimer;
-    private static Health playerHealth = new Health();
+    private Health playerHealth = new Health();
+    private ArrayList<BasicEnemy> enemies = new ArrayList<>();
+    private Random rand = new Random();
     public GameWindow(){
 
         try{
             player = ImageIO.read(getClass().getResource("player/pixil-frame-0.png"));
+            enemyImg = ImageIO.read(getClass().getResource("enemy/damage-orb.png"));
         } catch (IOException ex) {
             ex.printStackTrace();
         }
         setFocusable(true);
         addKeyListener(this);
+        for(int i=0;i<5;i++){
+            spawnEnemy();
+        }
         gameTimer = new Timer(20,this);
         gameTimer.start();
+    }
+    private void spawnEnemy(){
+        int x = rand.nextInt(800);
+        int y = rand.nextInt(600);
+        enemies.add(new BasicEnemy(x,y,2));
     }
     public static void main(String[]args){
         SwingUtilities.invokeLater(new Runnable(){
@@ -46,6 +60,11 @@ public class GameWindow extends JPanel implements KeyListener, ActionListener {
         super.paintComponent(g);
         if(player != null){
             g.drawImage(player,imageX, imageY, this);
+        }
+        for(BasicEnemy enemy:enemies){
+            if(enemy.isAlive()){
+                g.drawImage(enemyImg,enemy.getX(),enemy.getY(),this);
+            }
         }
     }
     @Override
@@ -79,6 +98,11 @@ public class GameWindow extends JPanel implements KeyListener, ActionListener {
         }
         imageX+=dx;
         imageY+=dy;
+        for(BasicEnemy enemy:enemies){
+            if(!enemy.isAlive())continue;
+            enemy.moveTowards(imageX,imageY);
+            if(enemy.collidesWith(imageX,imageY,player.getWidth(),player.getHeight()));
+        }
         repaint();
     }
     @Override

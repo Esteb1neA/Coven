@@ -1,8 +1,10 @@
 public class BasicEnemy{
     private int x,y;
     private int health;
-    private final int SPEED = 2;
+    private final int SPEED = 4;
     private boolean alive = true;
+    private final int WIDTH = 37;
+    private final int HEIGHT = 37;
     public BasicEnemy(int x, int y, int health){
         this.x=x;
         this.y=y;
@@ -18,9 +20,27 @@ public class BasicEnemy{
             y+=(int) (SPEED*dy/distance);
         }
     }
+    public boolean collidesWith(int px, int py, int pw, int ph){
+        return alive && x < px + pw && x + WIDTH > px && y < py + ph && y + HEIGHT > py;
+    }
     public boolean isNear(int px, int py, int range){
         int dx = px - x;
         int dy = py - y;
         return dx * dx + dy * dy < range * range;
+    }
+    public void damage(int amount){
+        health -= amount;
+        if (health<=0){
+            alive = false;
+        }
+    }
+    public boolean isAlive(){
+        return alive;
+    }
+    public int getX(){
+        return x;
+    }
+    public int getY(){
+        return y;
     }
 }

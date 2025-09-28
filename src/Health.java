@@ -1,15 +1,12 @@
 public class Health {
-    private int Health;
-    public Health(){
-        Health = 5;
+    private int health=5;
+    public void damage(int amount){
+        health = Math.max(0,health-amount);
     }
-    public void loseHealth(int damage){
-        Health = Health-damage;
+    public int getHealth(){
+        return health;
     }
-    public boolean isHealthZero(){
-        if(Health<=0){
-            return true;
-        }
-        return false;
+    public boolean isDead(){
+        return health<=0;
     }
 }
