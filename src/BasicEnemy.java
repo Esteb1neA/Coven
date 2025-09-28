@@ -1,68 +1,68 @@
-import javax.imageio.ImageIO;
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.ActionListener;
-import java.awt.event.KeyListener;
-import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Random;
-import java.util.Timer;
-import java.util.TimerTask;
-public class BasicEnemy extends JPanel{
-    private static int enemyNumber;
-    private BufferedImage enemy;
-    private int Health;
-    private int imageX, imageY;
-    private Random random = new Random();
-    private static Timer internalTimer;
-    private int speed = 3;
-    public BasicEnemy(){
-        try{
-            enemy = ImageIO.read(getClass().getResource("enemy/damage-orb.png"));
-        } catch (IOException ex){
-            ex.printStackTrace();
-        }
-        Health=2;
-        enemyNumber+=1;
+public class BasicEnemy{
+    private int x,y;
+    private int health;
+    private final int SPEED = 4;
+    private boolean alive = true;
+    private final int WIDTH = 37;
+    private final int HEIGHT = 37;
+    private long lastDamageTime = 0;
+    private final long DAMAGE_COOLDOWN_MS = 2000;
+    private long lastTimeDamagedByPlayer = 0;
+    private final long HIT_COOLDOWN_MS = 1000;
+    public BasicEnemy(int x, int y, int health){
+        this.x=x;
+        this.y=y;
+        this.health=health;
     }
-    public void move(int targetX, int targetY){
-        if(imageX<targetX){
-            imageX+=speed;
-        }else if (imageX>targetX){
-            imageX -= speed;
-        }
-        if(imageY<targetY){
-            imageY+=speed;
-        }else if (imageX>targetY){
-            imageY -= speed;
+    public void moveTowards(int targetX, int targetY){
+        if(!alive) return;
+        int dx = targetX - x;
+        int dy = targetY - y;
+        double distance = Math.sqrt(dx*dx+dy*dy);
+        if(distance>0){
+            x+=(int) (SPEED*dx/distance);
+            y+=(int) (SPEED*dy/distance);
         }
     }
-    public void takeDamage(int damage){
-        Health = Health - damage;
+    public boolean collidesWith(int px, int py, int pw, int ph){
+        return alive && x < px + pw && x + WIDTH > px && y < py + ph && y + HEIGHT > py;
     }
-    protected void paintComponent(Graphics g){
-        super.paintComponent(g);
-        for(ImageEntity entity : images){
-            g.drawImage(entity.getImage(),entity.getX(),entity.getY(),null);
-        }
+    public boolean isNear(int px, int py, int range){
+        int dx = px - x;
+        int dy = py - y;
+        return dx * dx + dy * dy < range * range;
     }
-    public boolean isDead(){
-        if(Health<=0){
+    public void registerDamage(){
+        lastDamageTime = System.currentTimeMillis();
+    }
+    public boolean tryDamagePlayer(){
+        long now = System.currentTimeMillis();
+        if(now - lastDamageTime >= DAMAGE_COOLDOWN_MS){
+            lastDamageTime = now;
             return true;
         }
         return false;
     }
+    public boolean canTakeDamage(){
+        long currentTime = System.currentTimeMillis();
+        return (currentTime - lastDamageTime >= HIT_COOLDOWN_MS);
+    }
+    public void registerHitByPlayer(){
+        lastTimeDamagedByPlayer = System.currentTimeMillis();
+    }
+    public void damage(int amount){
+        health -= amount;
+        if (health<=0){
+            alive = false;
+        }
+    }
+    public boolean isAlive(){
+        return alive;
+    }
     public int getX(){
-        return imageX;
+        return x;
     }
     public int getY(){
-        return imageY;
-    }
-    public BufferedImage getImage(){
-        return enemy;
-    }
-    public int getEnemyNumber(){
-        return enemyNumber;
+        return y;
     }
 }
