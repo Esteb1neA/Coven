@@ -15,7 +15,8 @@ import java.util.Set;
 public class GameWindow extends JPanel implements KeyListener, ActionListener {
     private static BufferedImage player;
     private static BufferedImage enemyImg;
-    private static int imageX,imageY=400;
+    private static int imageX;
+    private static int imageY;
     private final int MOVE_SPEED = 8;
     private Set<Integer> pressedKeys = new HashSet<>();
     private static Timer gameTimer;
@@ -23,6 +24,11 @@ public class GameWindow extends JPanel implements KeyListener, ActionListener {
     private ArrayList<BasicEnemy> enemies = new ArrayList<>();
     private Random rand = new Random();
     private boolean gameOver = false;
+    private int enemiesDefeated=0;
+    private final int WIN_THRESHOLD=20;
+    private boolean playerWon=false;
+    private long lastPlayerAttackTime = 0;
+    private final long PLAYER_ATTACK_COOLDOWN_MS = 500;
     public GameWindow(){
 
         try{
@@ -31,8 +37,11 @@ public class GameWindow extends JPanel implements KeyListener, ActionListener {
         } catch (IOException ex) {
             ex.printStackTrace();
         }
+        imageX = (1600 - player.getWidth())/2;
+        imageY = (1000 - player.getHeight())/2;
         setFocusable(true);
         addKeyListener(this);
+        setPreferredSize(new Dimension(1600,1000));
         for(int i=0;i<5;i++){
             spawnEnemy();
         }
@@ -40,8 +49,18 @@ public class GameWindow extends JPanel implements KeyListener, ActionListener {
         gameTimer.start();
     }
     private void spawnEnemy(){
-        int x = rand.nextInt(1600);
-        int y = rand.nextInt(1000);
+        int x;
+        int y;
+        final int SAFE_DISTANCE = 150;
+        boolean tooClose;
+        do{
+            x = rand.nextInt(1600-37);
+            y = rand.nextInt(1000-37);
+            int dx = x - imageX;
+            int dy = y -imageY;
+            double distance = Math.sqrt((dx*dx+dy*dy));
+            tooClose = (distance < SAFE_DISTANCE);
+        } while(tooClose);
         enemies.add(new BasicEnemy(x,y,2));
     }
     public static void main(String[]args){
@@ -51,6 +70,9 @@ public class GameWindow extends JPanel implements KeyListener, ActionListener {
                 frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
                 GameWindow panel = new GameWindow();
                 frame.add(panel);
+                frame.pack();
+                frame.setResizable(false);
+                frame.setLocationRelativeTo(null);
                 frame.setVisible(true);
             }
         });
@@ -59,12 +81,16 @@ public class GameWindow extends JPanel implements KeyListener, ActionListener {
     @Override
     protected void paintComponent(Graphics g){
         super.paintComponent(g);
-        if(gameOver){
+        if(gameOver || playerWon){
             g.setColor(Color.BLACK);
-            g.fillRect(0,0,getWidth(),getHeight());
-            g.setColor(Color.RED);
-            g.setFont(new Font("Arial",Font.BOLD,48));
-            g.drawString("Press R to Restart or ESC to quit",getWidth()/2-180,getHeight()/2 +40);
+            g.fillRect(0, 0, getWidth(), getHeight());
+            g.setFont(new Font("Arial", Font.BOLD, 48));
+            g.setColor(playerWon ? Color.GREEN : Color.RED);
+            String message = playerWon ? "YOU WIN!" : "GAME OVER!";
+            g.drawString(message, getWidth() / 2 - 150, getHeight() / 2 - 40);
+            g.setColor(Color.WHITE);
+            g.setFont(new Font("Arial", Font.PLAIN, 24));
+            g.drawString("Press R to Restart or ESC to Quit", getWidth() / 2 - 180, getHeight() / 2 + 40);
             return;
         }
         if(player != null){
@@ -80,6 +106,22 @@ public class GameWindow extends JPanel implements KeyListener, ActionListener {
         g.setColor(Color.BLACK);
         g.drawRect(10,10,200,20);
         g.drawString("Player HP: " + playerHealth.getHealth(),10,45);
+        int barWidth = 150;
+        int barHeight = 20;
+        int barX = getWidth() - barWidth - 20;
+        int barY = getHeight() - barHeight - 20;
+        long timeSinceLastAttack = System.currentTimeMillis() - lastPlayerAttackTime;
+        float cooldownRatio = Math.min(1f, (float) timeSinceLastAttack / PLAYER_ATTACK_COOLDOWN_MS);
+        g.setColor(Color.DARK_GRAY);
+        g.fillRect(barX, barY, barWidth, barHeight);
+        g.setColor(cooldownRatio >= 1f ? Color.GREEN : Color.YELLOW);
+        g.fillRect(barX, barY, (int)(barWidth * cooldownRatio), barHeight);
+        g.setColor(Color.BLACK);
+        g.drawRect(barX, barY, barWidth, barHeight);
+        g.setColor(Color.BLACK);
+        g.setFont(new Font("Arial", Font.PLAIN, 12));
+        g.drawString("Attack Cooldown", barX + 20, barY - 5);
+        repaint();
     }
     @Override
     public void keyPressed(KeyEvent e){
@@ -125,16 +167,31 @@ public class GameWindow extends JPanel implements KeyListener, ActionListener {
             if(!enemy.isAlive())continue;
             enemy.moveTowards(imageX,imageY);
             if(enemy.collidesWith(imageX,imageY,player.getWidth(),player.getHeight())){
-                playerHealth.damage(1);
+                if(enemy.tryDamagePlayer()) {
+                    playerHealth.damage(1);
+                    enemy.registerDamage();
+                }
             }
         }
-        if(pressedKeys.contains(KeyEvent.VK_SPACE)){
-            for(BasicEnemy enemy:enemies){
-                if(!enemy.isAlive())continue;
-                if(enemy.isNear(imageX,imageY,50)){
-                    if(enemy.canDamage()) {
-                        enemy.damage(1);
-                        enemy.registerDamage();
+        long currentTime = System.currentTimeMillis();
+        if (pressedKeys.contains(KeyEvent.VK_SPACE)) {
+            if (currentTime - lastPlayerAttackTime >= PLAYER_ATTACK_COOLDOWN_MS) {
+                lastPlayerAttackTime = currentTime;
+                for (BasicEnemy enemy : enemies) {
+                    if (!enemy.isAlive()) continue;
+                    if (enemy.isNear(imageX, imageY, 150)) {
+                        if (enemy.canTakeDamage()) {
+                            boolean wasAlive = enemy.isAlive();
+                            enemy.damage(1);
+                            enemy.registerHitByPlayer();
+                            if (wasAlive && !enemy.isAlive()) {
+                                enemiesDefeated++;
+                                if (enemiesDefeated >= WIN_THRESHOLD) {
+                                    playerWon = true;
+                                    gameTimer.stop();
+                                }
+                            }
+                        }
                     }
                 }
             }
