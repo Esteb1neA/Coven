@@ -25,15 +25,20 @@ public class GameWindow extends JPanel implements KeyListener, ActionListener {
     private Random rand = new Random();
     private boolean gameOver = false;
     private int enemiesDefeated=0;
-    private final int WIN_THRESHOLD=20;
+    private final int WIN_THRESHOLD=15;
     private boolean playerWon=false;
     private long lastPlayerAttackTime = 0;
     private final long PLAYER_ATTACK_COOLDOWN_MS = 500;
+    private static BufferedImage attackSprite;
+    private boolean showAttackSprite = false;
+    private long attackSpriteStartTime;
+    private final long ATTACK_SPRITE_DURATION_MS = 100;
     public GameWindow(){
 
-        try{
+        try{// generates sprites into variables
             player = ImageIO.read(getClass().getResource("player/player-character.png"));
             enemyImg = ImageIO.read(getClass().getResource("enemy/damage-orb.png"));
+            attackSprite = ImageIO.read(getClass().getResource("player/attack.png"));
         } catch (IOException ex) {
             ex.printStackTrace();
         }
@@ -48,10 +53,10 @@ public class GameWindow extends JPanel implements KeyListener, ActionListener {
         gameTimer = new Timer(20,this);
         gameTimer.start();
     }
-    private void spawnEnemy(){
+    private void spawnEnemy(){ // spawns enemies and ensures that the enemies do not spawn too close to the player
         int x;
         int y;
-        final int SAFE_DISTANCE = 150;
+        final int SAFE_DISTANCE = 200;
         boolean tooClose;
         do{
             x = rand.nextInt(1600-37);
@@ -81,7 +86,7 @@ public class GameWindow extends JPanel implements KeyListener, ActionListener {
     @Override
     protected void paintComponent(Graphics g){
         super.paintComponent(g);
-        if(gameOver || playerWon){
+        if(gameOver || playerWon){ // determines screen for game over or victory
             g.setColor(Color.BLACK);
             g.fillRect(0, 0, getWidth(), getHeight());
             g.setFont(new Font("Arial", Font.BOLD, 48));
@@ -93,19 +98,27 @@ public class GameWindow extends JPanel implements KeyListener, ActionListener {
             g.drawString("Press R to Restart or ESC to Quit", getWidth() / 2 - 180, getHeight() / 2 + 40);
             return;
         }
-        if(player != null){
+        if(player != null){// draws image for player
             g.drawImage(player,imageX, imageY, this);
         }
-        for(BasicEnemy enemy:enemies){
+        for(BasicEnemy enemy:enemies){// draws image for enemies
             if(enemy.isAlive()){
                 g.drawImage(enemyImg,enemy.getX(),enemy.getY(),this);
             }
+        }
+        if (showAttackSprite && attackSprite != null) { // draws attack sprite
+            int attackRadius = 100;
+            int scaledWidth = attackRadius * 2;
+            int scaledHeight = attackRadius * 2;
+            int attackX = imageX + player.getWidth() / 2 - scaledWidth / 2;
+            int attackY = imageY + player.getHeight() / 2 - scaledHeight / 2;
+            g.drawImage(attackSprite, attackX, attackY, scaledWidth, scaledHeight, this);
         }
         g.setColor(Color.RED);
         g.fillRect(10,10,playerHealth.getHealth()*20,20);
         g.setColor(Color.BLACK);
         g.drawRect(10,10,200,20);
-        g.drawString("Player HP: " + playerHealth.getHealth(),10,45);
+        g.drawString("Player HP: " + playerHealth.getHealth(),10,45); //generates player hp bar
         int barWidth = 150;
         int barHeight = 20;
         int barX = getWidth() - barWidth - 20;
@@ -120,11 +133,11 @@ public class GameWindow extends JPanel implements KeyListener, ActionListener {
         g.drawRect(barX, barY, barWidth, barHeight);
         g.setColor(Color.BLACK);
         g.setFont(new Font("Arial", Font.PLAIN, 12));
-        g.drawString("Attack Cooldown", barX + 20, barY - 5);
+        g.drawString("Attack Cooldown", barX + 20, barY - 5);// generates bar for attack cooldown
         repaint();
     }
     @Override
-    public void keyPressed(KeyEvent e){
+    public void keyPressed(KeyEvent e){ // receives key inputs
         int key = e.getKeyCode();
         pressedKeys.add(key);
         if(gameOver){
@@ -144,7 +157,7 @@ public class GameWindow extends JPanel implements KeyListener, ActionListener {
         if(gameOver)return;
         int dx=0;
         int dy=0;
-        if (pressedKeys.contains(KeyEvent.VK_LEFT)&&imageX>0){
+        if (pressedKeys.contains(KeyEvent.VK_LEFT)&&imageX>0){ // player movement
             dx -= MOVE_SPEED;
         }
         if (pressedKeys.contains(KeyEvent.VK_RIGHT)&&imageX<1650) {
@@ -156,14 +169,14 @@ public class GameWindow extends JPanel implements KeyListener, ActionListener {
         if (pressedKeys.contains(KeyEvent.VK_DOWN)&&imageY<1000) {
             dy += MOVE_SPEED;
         }
-        if(dx!=0&&dy!=0){
+        if(dx!=0&&dy!=0){ // allows for diagonal movement
             double magnitude = Math.sqrt(dx*dx+dy*dy);
             dx=(int)(dx/magnitude*MOVE_SPEED);
             dy=(int)(dy/magnitude*MOVE_SPEED);
         }
         imageX+=dx;
         imageY+=dy;
-        for(BasicEnemy enemy:enemies){
+        for(BasicEnemy enemy:enemies){ // makes enemies move towards player, if enemy is near player they will move more directly towards them and once in range will deal damage at a fixed rate
             if(!enemy.isAlive())continue;
             enemy.moveTowards(imageX,imageY);
             if(enemy.collidesWith(imageX,imageY,player.getWidth(),player.getHeight())){
@@ -174,12 +187,14 @@ public class GameWindow extends JPanel implements KeyListener, ActionListener {
             }
         }
         long currentTime = System.currentTimeMillis();
-        if (pressedKeys.contains(KeyEvent.VK_SPACE)) {
+        if (pressedKeys.contains(KeyEvent.VK_SPACE)) { // player attack
             if (currentTime - lastPlayerAttackTime >= PLAYER_ATTACK_COOLDOWN_MS) {
                 lastPlayerAttackTime = currentTime;
+                showAttackSprite = true;
+                attackSpriteStartTime=currentTime;
                 for (BasicEnemy enemy : enemies) {
                     if (!enemy.isAlive()) continue;
-                    if (enemy.isNear(imageX, imageY, 150)) {
+                    if (enemy.isNear(imageX, imageY, 100)) {
                         if (enemy.canTakeDamage()) {
                             boolean wasAlive = enemy.isAlive();
                             enemy.damage(1);
@@ -196,12 +211,15 @@ public class GameWindow extends JPanel implements KeyListener, ActionListener {
                 }
             }
         }
-        if(playerHealth.isDead()){
+        if(playerHealth.isDead()){ // checks if player is dead
             gameOver=true;
             gameTimer.stop();
         }
-        if(enemies.stream().filter(BasicEnemy::isAlive).count()<3){
+        if(enemies.stream().filter(BasicEnemy::isAlive).count()<3){ // if there are less than 3 enemies, spawns more enemies
             spawnEnemy();
+        }
+        if (showAttackSprite && currentTime - attackSpriteStartTime >= ATTACK_SPRITE_DURATION_MS) { // determines when attack sprite is activated
+            showAttackSprite = false;
         }
         repaint();
     }
@@ -209,7 +227,7 @@ public class GameWindow extends JPanel implements KeyListener, ActionListener {
     public void keyTyped(KeyEvent e){
 
     }
-    private void restartGame(){
+    private void restartGame(){ // restarts the game
         playerHealth = new Health();
         imageX=400;
         imageY=400;
