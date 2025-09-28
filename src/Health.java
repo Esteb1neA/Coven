@@ -1,5 +1,5 @@
 public class Health {
-    private int health=5;
+    private int health=10;
     public void damage(int amount){
         health = Math.max(0,health-amount);
     }

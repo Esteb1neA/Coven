@@ -5,6 +5,8 @@ public class BasicEnemy{
     private boolean alive = true;
     private final int WIDTH = 37;
     private final int HEIGHT = 37;
+    private long lastDamageTime = 0;
+    private final long DAMAGE_COOLDOWN_MS = 2000;
     public BasicEnemy(int x, int y, int health){
         this.x=x;
         this.y=y;
@@ -27,6 +29,21 @@ public class BasicEnemy{
         int dx = px - x;
         int dy = py - y;
         return dx * dx + dy * dy < range * range;
+    }
+    public boolean canDamage(){
+        long currentTime = System.currentTimeMillis();
+        return (currentTime - lastDamageTime >= DAMAGE_COOLDOWN_MS);
+    }
+    public void registerDamage(){
+        lastDamageTime = System.currentTimeMillis();
+    }
+    public boolean tryDamagePlayer(){
+        long now = System.currentTimeMillis();
+        if(now - lastDamageTime >= DAMAGE_COOLDOWN_MS){
+            lastDamageTime = now;
+            return true;
+        }
+        return false;
     }
     public void damage(int amount){
         health -= amount;

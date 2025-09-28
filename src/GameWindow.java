@@ -22,10 +22,11 @@ public class GameWindow extends JPanel implements KeyListener, ActionListener {
     private Health playerHealth = new Health();
     private ArrayList<BasicEnemy> enemies = new ArrayList<>();
     private Random rand = new Random();
+    private boolean gameOver = false;
     public GameWindow(){
 
         try{
-            player = ImageIO.read(getClass().getResource("player/pixil-frame-0.png"));
+            player = ImageIO.read(getClass().getResource("player/player-character.png"));
             enemyImg = ImageIO.read(getClass().getResource("enemy/damage-orb.png"));
         } catch (IOException ex) {
             ex.printStackTrace();
@@ -39,8 +40,8 @@ public class GameWindow extends JPanel implements KeyListener, ActionListener {
         gameTimer.start();
     }
     private void spawnEnemy(){
-        int x = rand.nextInt(800);
-        int y = rand.nextInt(600);
+        int x = rand.nextInt(1600);
+        int y = rand.nextInt(1000);
         enemies.add(new BasicEnemy(x,y,2));
     }
     public static void main(String[]args){
@@ -58,6 +59,14 @@ public class GameWindow extends JPanel implements KeyListener, ActionListener {
     @Override
     protected void paintComponent(Graphics g){
         super.paintComponent(g);
+        if(gameOver){
+            g.setColor(Color.BLACK);
+            g.fillRect(0,0,getWidth(),getHeight());
+            g.setColor(Color.RED);
+            g.setFont(new Font("Arial",Font.BOLD,48));
+            g.drawString("Press R to Restart or ESC to quit",getWidth()/2-180,getHeight()/2 +40);
+            return;
+        }
         if(player != null){
             g.drawImage(player,imageX, imageY, this);
         }
@@ -66,10 +75,23 @@ public class GameWindow extends JPanel implements KeyListener, ActionListener {
                 g.drawImage(enemyImg,enemy.getX(),enemy.getY(),this);
             }
         }
+        g.setColor(Color.RED);
+        g.fillRect(10,10,playerHealth.getHealth()*2,20);
+        g.setColor(Color.BLACK);
+        g.drawRect(10,10,200,20);
+        g.drawString("Player HP: " + playerHealth.getHealth(),10,45);
     }
     @Override
     public void keyPressed(KeyEvent e){
-        pressedKeys.add(e.getKeyCode());
+        int key = e.getKeyCode();
+        pressedKeys.add(key);
+        if(gameOver){
+            if(key == KeyEvent.VK_R){
+                restartGame();
+            } else if (key==KeyEvent.VK_ESCAPE) {
+                System.exit(0);
+            }
+        }
     }
     @Override
     public void keyReleased(KeyEvent e){
@@ -77,6 +99,7 @@ public class GameWindow extends JPanel implements KeyListener, ActionListener {
     }
     @Override
     public void actionPerformed(ActionEvent e){
+        if(gameOver)return;
         int dx=0;
         int dy=0;
         if (pressedKeys.contains(KeyEvent.VK_LEFT)&&imageX>0){
@@ -101,12 +124,44 @@ public class GameWindow extends JPanel implements KeyListener, ActionListener {
         for(BasicEnemy enemy:enemies){
             if(!enemy.isAlive())continue;
             enemy.moveTowards(imageX,imageY);
-            if(enemy.collidesWith(imageX,imageY,player.getWidth(),player.getHeight()));
+            if(enemy.collidesWith(imageX,imageY,player.getWidth(),player.getHeight())){
+                playerHealth.damage(1);
+            }
+        }
+        if(pressedKeys.contains(KeyEvent.VK_SPACE)){
+            for(BasicEnemy enemy:enemies){
+                if(!enemy.isAlive())continue;
+                if(enemy.isNear(imageX,imageY,50)){
+                    if(enemy.canDamage()) {
+                        enemy.damage(1);
+                        enemy.registerDamage();
+                    }
+                }
+            }
+        }
+        if(playerHealth.isDead()){
+            gameOver=true;
+            gameTimer.stop();
+        }
+        if(enemies.stream().filter(BasicEnemy::isAlive).count()<3){
+            spawnEnemy();
         }
         repaint();
     }
     @Override
     public void keyTyped(KeyEvent e){
 
+    }
+    private void restartGame(){
+        playerHealth = new Health();
+        imageX=400;
+        imageY=400;
+        enemies.clear();
+        for(int i = 0; i < 5; i++) {
+            spawnEnemy();
+        }
+        gameOver = false;
+        gameTimer.start();
+        repaint();
     }
 }
